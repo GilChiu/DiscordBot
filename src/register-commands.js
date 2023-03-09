@@ -5,7 +5,7 @@ const commands = [
     {
         name: 'translate',
         description: 'translates message to specified language',
-        options
+        
     },
     
 ];

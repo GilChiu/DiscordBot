@@ -1,7 +1,6 @@
 require('dotenv').config();
-const { GPT } = require('@openai/api');
+const translate = require('@vitalets/google-translate-api');
 
-const gpt2 = require('gpt-2')
 
 const { Client, IntentsBitField } = require('discord.js');
 
@@ -20,23 +19,23 @@ client.on('ready', (c) => {
     console.log(`✅ ${c.user.username} is online `);
 });
 
-client.on('interactionCreate', async (interaction) => {
+client.on('interactionCreate', async interaction => {
     if(!interaction.isChatInputCommand()) return;
 
+    const { commandName, options } = interaction;
 
-    if(interaction.commandName === 'translate'){
-        if (message.author.bot) return;
-    
-    const content = message.content;
-    const targetLanguage = 'es';
+    if (commandName === 'translate') {
+    const text = options.getString('text');
+    const targetLanguage = options.getString('target');
 
-    const gpt2Response = await gpt2.generate({
-        prompt: `${content} [to ${targetLanguage}]`,
-        length: 100,
-      });
-    const translation = gpt2Response.data.text.trim().split('\n')[0].split('] ')[1];
-    console.log(translation);
+    try {
+      const result = await translate(text, { to: targetLanguage });
+      interaction.reply(result.text);
+    } catch (error) {
+      console.error(error);
+      interaction.reply('An error occurred while translating the text.');
     }
+  }
 
     
 });
