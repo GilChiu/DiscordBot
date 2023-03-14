@@ -1,23 +1,17 @@
 require('dotenv/config');
-
-
-
 const { Client, IntentsBitField } = require('discord.js');
 const { Configuration, OpenAIApi } = require('openai');
 
 const client = new Client({
-    intents: [
-        IntentsBitField.Flags.Guilds,
-        IntentsBitField.Flags.GuildMembers,
-        IntentsBitField.Flags.GuildMessages,
-        IntentsBitField.Flags.MessageContent,
-
-
-    ],
+  intents: [
+    IntentsBitField.Flags.Guilds,
+    IntentsBitField.Flags.GuildMessages,
+    IntentsBitField.Flags.MessageContent,
+  ],
 });
 
-client.on('ready', (c) => {
-    console.log(`✅ ${c.user.username} is online `);
+client.on('ready', () => {
+  console.log('✅Bot is Online');
 });
 
 const configuration = new Configuration({
@@ -25,28 +19,47 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
-client.on('interactionCreate', async interaction => {
-  if (!interaction.isCommand() || interaction.commandName !== 'translate') return;
-
-  const message = interaction.options.getString('message');
-
-  const conversationLog = [
-    { role: 'system', content: 'You are a friendly chatbot.' },
-    { role: 'user', content: message }
-  ];
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  
+  if (message.mentions.has(client.user.id)){
+    let conversationLog = [{ role: 'system', content: 'You are a friendly chatbot.' }];
 
   try {
-    const result = await openai.createChatCompletion({
-      model: 'text-davinci-002',
-      messages: conversationLog
+    await message.channel.sendTyping();
+
+    let prevMessages = await message.channel.messages.fetch({ limit: 30 });
+    prevMessages.reverse();
+
+    prevMessages.forEach((msg) => {
+      if (!message.mentions.has(client.user.id)) return;
+      if (message.author.bot) return;
+      if (msg.author.id !== message.author.id) return;
+
+      conversationLog.push({
+        role: 'user',
+        content: msg.content,
+      });
     });
 
-    await interaction.reply(result.data.choices[0].text);
+    const result = await openai
+      .createChatCompletion({
+        model: 'gpt-3.5-turbo',
+        messages: conversationLog,
+        // max_tokens: 256, // limit token usage
+      })
+      .catch((error) => {
+        console.log(`OPENAI ERR: ${error}`);
+      });
+
+    message.reply(result.data.choices[0].message); 
   } catch (error) {
-    console.log(`ERROR: ${error}`);
-    await interaction.reply('Sorry, there was an error processing your request.');
+    console.log(`ERR: ${error}`);
   }
+  }
+
+  
+  
 });
 
 client.login(process.env.TOKEN);
-
