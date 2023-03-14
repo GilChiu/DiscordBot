@@ -1,8 +1,9 @@
-require('dotenv').config();
-const translate = require('@vitalets/google-translate-api');
+require('dotenv/config');
+
 
 
 const { Client, IntentsBitField } = require('discord.js');
+const { Configuration, OpenAIApi } = require('openai');
 
 const client = new Client({
     intents: [
@@ -19,25 +20,32 @@ client.on('ready', (c) => {
     console.log(`✅ ${c.user.username} is online `);
 });
 
+const configuration = new Configuration({
+  apiKey: process.env.API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
 client.on('interactionCreate', async interaction => {
-    if(!interaction.isChatInputCommand()) return;
+  if (!interaction.isCommand() || interaction.commandName !== 'translate') return;
 
-    const { commandName, options } = interaction;
+  const message = interaction.options.getString('message');
 
-    if (commandName === 'translate') {
-    const text = options.getString('text');
-    const targetLanguage = options.getString('target');
+  const conversationLog = [
+    { role: 'system', content: 'You are a friendly chatbot.' },
+    { role: 'user', content: message }
+  ];
 
-    try {
-      const result = await translate(text, { to: targetLanguage });
-      interaction.reply(result.text);
-    } catch (error) {
-      console.error(error);
-      interaction.reply('An error occurred while translating the text.');
-    }
+  try {
+    const result = await openai.createChatCompletion({
+      model: 'text-davinci-002',
+      messages: conversationLog
+    });
+
+    await interaction.reply(result.data.choices[0].text);
+  } catch (error) {
+    console.log(`ERROR: ${error}`);
+    await interaction.reply('Sorry, there was an error processing your request.');
   }
-
-    
 });
 
 client.login(process.env.TOKEN);
